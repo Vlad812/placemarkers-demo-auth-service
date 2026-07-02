@@ -1,0 +1,4 @@
+framework:
+    messenger:
+        transports:
+            email_notifier: '%env(MESSENGER_TRANSPORT_DSN)%'

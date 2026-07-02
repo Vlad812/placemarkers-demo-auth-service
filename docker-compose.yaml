@@ -1,0 +1,48 @@
+services:
+  auth-service-cli:
+    image: auth-service-cli-image
+    container_name: auth-service-cli
+    build:
+      context: .
+      dockerfile: ./Docker/php/cli/Dockerfile
+    environment:
+      COMPOSER_HTTP_TIMEOUT: 600
+    volumes:
+      - ./app:/var/www/html
+    working_dir: /var/www/html
+    networks:
+      - place_markers_net
+
+  # Основной сервис с RoadRunner
+  auth-service-app:
+    image: auth-service-app-image
+    container_name: auth-service-app
+    build:
+      dockerfile: ./Docker/RR/Dockerfile
+    volumes:
+      - ./app:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=place_markers_net"
+      - "traefik.http.routers.auth-service-app.rule=Host(`api.placemarkers.local`) && PathRegexp(`^/(login|logout|refresh|signup|forgot-password|reset-password|confirm-email/.+)$`)"
+      - "traefik.http.routers.auth-service-app.entrypoints=web"
+      - "traefik.http.routers.auth-service-app.priority=100"
+      - "traefik.http.services.auth-service-app.loadbalancer.server.port=8080"
+    environment:
+      VAR_DUMPER_FORMAT: 'server'
+      VAR_DUMPER_SERVER: 'buggregator:9912'
+      DATABASE_URL: "postgresql://my_postgres:postgres@cs-pg-auth:5432/placemarkers_user_db?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "amqp://my_rabbit:rabbit@cs-rabbitmq:5672/placemarkers/email_notifier"
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - place_markers_net
+
+networks:
+  place_markers_net:
+    external: true
