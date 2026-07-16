@@ -1,0 +1,144 @@
+### auth-service — HTTP-запросы для всех use case
+###
+### Базовый URL (Traefik): api.placemarkers.local
+### Тестовый пользователь из init.sql: test@example.com / 12345678
+###
+### Токены confirm-email и reset-password берутся из письма или БД:
+###   SELECT email_verification_token FROM users WHERE email = '...';
+###   SELECT password_reset_token FROM users WHERE email = '...';
+
+@host = http://api.placemarkers.local
+@email = test@example.com
+@password = 12345678
+@newUserEmail = newuser@example.com
+@newUserPassword = 12345678
+@confirmEmailToken = REPLACE_WITH_TOKEN_FROM_EMAIL_OR_DB
+@resetPasswordToken = REPLACE_WITH_TOKEN_FROM_EMAIL_OR_DB
+@newPassword = newpassword123
+
+###############################################################################
+# Служебные
+###############################################################################
+
+### Health check
+GET {{host}}/health
+Accept: application/json
+
+###############################################################################
+# 1. Регистрация (Signup)
+# POST /signup — создаёт пользователя, отправляет письмо подтверждения
+# Требует: неавторизованный запрос
+###############################################################################
+
+# @no-cookie-jar
+### Signup — регистрация нового пользователя
+POST {{host}}/signup
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "{{newUserEmail}}",
+    "password": "{{newUserPassword}}"
+}
+
+###############################################################################
+# 2. Подтверждение email (Confirm Email)
+# GET /confirm-email/{token} — активирует аккаунт по токену из письма
+###############################################################################
+
+### Confirm email — подтверждение email
+GET {{host}}/confirm-email/{{confirmEmailToken}}
+Accept: application/json
+
+###############################################################################
+# 3. Вход (Login)
+# POST /login — возвращает access_token и refresh_token
+# Требует: неавторизованный запрос, активированный аккаунт (is_active = true)
+###############################################################################
+
+# @no-cookie-jar
+# @name login
+### Login — вход в систему
+POST {{host}}/login
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "{{email}}",
+    "password": "{{password}}"
+}
+
+###############################################################################
+# 4. Обновление токена (Refresh Token)
+# POST /refresh — выдаёт новую пару access + refresh (rotation)
+###############################################################################
+
+# @no-cookie-jar
+# @name refresh
+### Refresh token — обновление access token
+POST {{host}}/refresh
+Content-Type: application/json
+Accept: application/json
+
+{
+    "refresh_token": "{{login.response.body.refresh_token}}"
+}
+
+###############################################################################
+# 5. Выход (Logout)
+# POST /api/auth/logout — инвалидирует refresh token
+# Требует: Authorization: Bearer {access_token}
+# Опционально: refresh_token в теле для отзыва конкретного refresh token
+###############################################################################
+
+# @no-cookie-jar
+### Logout — выход (с отзывом refresh token)
+POST {{host}}/api/auth/logout
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+    "refresh_token": "{{login.response.body.refresh_token}}"
+}
+
+# @no-cookie-jar
+### Logout — выход (без refresh token в теле)
+POST {{host}}/api/auth/logout
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{}
+
+###############################################################################
+# 6. Запрос сброса пароля (Forgot Password)
+# POST /forgot-password — отправляет письмо со ссылкой/токеном сброса
+# Требует: неавторизованный запрос
+###############################################################################
+
+# @no-cookie-jar
+### Forgot password — запрос сброса пароля
+POST {{host}}/forgot-password
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "{{email}}"
+}
+
+###############################################################################
+# 7. Сброс пароля (Reset Password)
+# POST /reset-password — устанавливает новый пароль по токену из письма
+###############################################################################
+
+# @no-cookie-jar
+### Reset password — установка нового пароля
+POST {{host}}/reset-password
+Content-Type: application/json
+Accept: application/json
+
+{
+    "token": "{{resetPasswordToken}}",
+    "password": "{{newPassword}}"
+}
