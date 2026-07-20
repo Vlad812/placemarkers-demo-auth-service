@@ -2,13 +2,15 @@ AUTH_SERVICE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))
 PROJECT_ROOT := $(abspath $(AUTH_SERVICE_DIR)/../..)
 include $(PROJECT_ROOT)/config.mk
 
-.PHONY: auth-service-init auth-service-build auth-service-up auth-service-down auth-service-cache-clear auth-service-test-unit
+.PHONY: auth-service-init auth-service-jwt-generate auth-service-build auth-service-up auth-service-down auth-service-cache-clear auth-service-test-unit
 
 auth-service-init:
 	@echo "composer зависимости"
 	docker compose -f $(AUTH_SERVICE_DIR)/docker-compose.yaml -p $(PROJECT_GROUP_MAIN_SERVICE) run --rm auth-service-cli composer install --optimize-autoloader --no-interaction
 	@echo 'Обновляю автозагрузчик Composer...';
 	docker compose -f $(AUTH_SERVICE_DIR)/docker-compose.yaml -p $(PROJECT_GROUP_MAIN_SERVICE) run --rm auth-service-cli composer dump-autoload --optimize;
+
+auth-service-jwt-generate:
 	@echo 'Генерирую JWT ключи...';
 	docker compose -f $(AUTH_SERVICE_DIR)/docker-compose.yaml -p $(PROJECT_GROUP_MAIN_SERVICE) run --rm auth-service-cli php bin/console lexik:jwt:generate-keypair --skip-if-exists
 
