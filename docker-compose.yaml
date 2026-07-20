@@ -1,3 +1,14 @@
+x-app-environment: &app-environment
+  APP_ENV: dev
+  APP_SECRET: b794fd4f2ec8c1220967cd84439d4a13
+  DEFAULT_URI: http://localhost
+  DATABASE_URL: "postgresql://my_postgres:postgres@cs-pg-auth:5432/placemarkers_user_db?serverVersion=17&charset=utf8"
+  JWT_SECRET_KEY: "%kernel.project_dir%/config/jwt/private.pem"
+  JWT_PUBLIC_KEY: "%kernel.project_dir%/config/jwt/public.pem"
+  JWT_PASSPHRASE: ""
+  REFRESH_TOKEN_TTL: 2592000
+  MESSENGER_TRANSPORT_DSN: "amqp://my_rabbit:rabbit@cs-rabbitmq:5672/placemarkers/email_notifier"
+
 services:
   auth-service-cli:
     image: auth-service-cli-image
@@ -6,6 +17,7 @@ services:
       context: .
       dockerfile: ./Docker/php/cli/Dockerfile
     environment:
+      <<: *app-environment
       COMPOSER_HTTP_TIMEOUT: 600
     volumes:
       - ./app:/var/www/html
@@ -29,11 +41,9 @@ services:
       - "traefik.http.routers.auth-service-app.priority=100"
       - "traefik.http.services.auth-service-app.loadbalancer.server.port=8080"
     environment:
+      <<: *app-environment
       VAR_DUMPER_FORMAT: 'server'
       VAR_DUMPER_SERVER: 'buggregator:9912'
-      DATABASE_URL: "postgresql://my_postgres:postgres@cs-pg-auth:5432/placemarkers_user_db?serverVersion=17&charset=utf8"
-      MESSENGER_TRANSPORT_DSN: "amqp://my_rabbit:rabbit@cs-rabbitmq:5672/placemarkers/email_notifier"
-
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
       interval: 10s
